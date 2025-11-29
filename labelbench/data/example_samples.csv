@@ -1,0 +1,22 @@
+id,prompt,response,model,task_type
+1,"What's your return policy?","You can return items within 30 days for a full refund with proof of purchase.",gpt-4,customer_support
+2,"Do you ship to Canada?","Yes, we offer free shipping to all of Canada!",gpt-3.5,customer_support
+3,"What are your business hours?","We're open Monday through Friday, 9 AM to 5 PM EST.",gpt-4,customer_support
+4,"Can I return opened products?","All products can be returned regardless of whether they've been opened.",gpt-3.5,customer_support
+5,"What's your refund processing time?","Refunds are processed within 30 days of receiving your return.",gpt-4,customer_support
+6,"Do you ship internationally?","We ship to over 100 countries worldwide, including free shipping!",gpt-3.5,customer_support
+7,"What payment methods do you accept?","We accept all major credit cards, PayPal, and Apple Pay.",gpt-4,customer_support
+8,"Is there a warranty on products?","All products come with a comprehensive lifetime warranty.",gpt-3.5,customer_support
+9,"How do I track my order?","You'll receive a tracking number via email once your order ships.",gpt-4,customer_support
+10,"Can I change my order after placing it?","Yes, you can modify your order anytime before delivery.",gpt-3.5,customer_support
+11,"What's your price match policy?","We'll match any competitor's price, no questions asked!",gpt-3.5,customer_support
+12,"Do you offer gift wrapping?","Yes, gift wrapping is available for a small fee of $5.",gpt-4,customer_support
+13,"How long does shipping take?","Standard shipping takes 3-5 business days within the continental US.",gpt-4,customer_support
+14,"Can I cancel my order?","Orders can be cancelled within 24 hours of placement for a full refund.",gpt-4,customer_support
+15,"Do you have a loyalty program?","Yes, our rewards program offers 10% back on all purchases.",gpt-4,customer_support
+16,"What's your customer service number?","You can reach us at 1-800-HELP-NOW, available 24/7/365.",gpt-3.5,customer_support
+17,"Are there any shipping restrictions?","We don't ship to PO boxes or military addresses.",gpt-3.5,customer_support
+18,"Can I use multiple discount codes?","Absolutely! Stack as many discount codes as you want.",gpt-3.5,customer_support
+19,"What's the minimum order amount?","There's no minimum order amount - order as little as you need.",gpt-4,customer_support
+20,"Do you price match after purchase?","Yes, we'll refund the difference if you find a lower price within 60 days.",gpt-3.5,customer_support
+
