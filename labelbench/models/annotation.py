@@ -31,7 +31,6 @@ class Annotation(BaseModel):
     # Structured feedback (only required if rejected)
     primary_issue: Optional[Literal[
         "hallucination",
-        "factually_incorrect",
         "incomplete",
         "wrong_format",
         "off_topic",
