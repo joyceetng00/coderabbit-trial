@@ -358,13 +358,41 @@ class Database:
         return results
     
     def get_total_samples(self) -> int:
-        """Get total number of samples in database.
+        """
+        Return the total number of samples stored in the database.
         
         Returns:
-            Count of samples
+            int: Total number of samples.
         """
         with self._get_connection() as conn:
             cursor = conn.execute("SELECT COUNT(*) as count FROM samples")
             row = cursor.fetchone()
         return row['count']
-
+    
+    def clear_all_data(self) -> Dict[str, int]:
+        """
+        Permanently remove all samples and annotations from the database.
+        
+        Counts records before deletion and deletes all rows from annotations and samples (respecting foreign-key cascade), returning the pre-deletion counts.
+        
+        Returns:
+            result (Dict[str, int]): Dictionary with keys 'samples_deleted' and 'annotations_deleted' containing the number of samples and annotations removed.
+        """
+        with self._get_connection() as conn:
+            # Get counts before deletion for reporting
+            cursor = conn.execute("SELECT COUNT(*) as count FROM annotations")
+            annotations_count = cursor.fetchone()['count']
+            
+            cursor = conn.execute("SELECT COUNT(*) as count FROM samples")
+            samples_count = cursor.fetchone()['count']
+            
+            # Delete all annotations first (due to foreign key constraint)
+            conn.execute("DELETE FROM annotations")
+            
+            # Delete all samples (cascade will handle any remaining annotations)
+            conn.execute("DELETE FROM samples")
+        
+        return {
+            'samples_deleted': samples_count,
+            'annotations_deleted': annotations_count
+        }

@@ -8,7 +8,17 @@ from storage.import_export import import_csv, import_json
 
 
 def show_import_page():
-    """Display the import data page."""
+    """
+    Render the "Import Data" Streamlit page and handle importing prompt-response samples.
+    
+    This page lets the user upload a CSV or JSON file (required fields: `id`, `prompt`, `response`; additional columns are stored as metadata), previews up to five parsed samples, and provides a button to insert parsed samples into the app database. It also shows current database metrics (total, annotated, remaining) and provides a two-step "Clear All Data" workflow to permanently remove all samples and annotations.
+    
+    Side effects:
+    - Writes the uploaded file to a temporary file on disk and removes it after processing.
+    - Calls database methods from `st.session_state.db` (e.g., `insert_samples`, `get_total_samples`, `get_annotation_stats`, `clear_all_data`).
+    - Modifies `st.session_state` keys (e.g., `samples_to_annotate`, `current_index`, `show_rejection_form`, `show_clear_confirmation`) as part of import and clear workflows.
+    - Displays success, warning, error, and informational messages in the Streamlit UI.
+    """
     st.title("Import Data")
     
     st.markdown("""
@@ -94,4 +104,49 @@ def show_import_page():
     col1.metric("Total Samples", total_samples)
     col2.metric("Annotated", stats['total_annotated'])
     col3.metric("Remaining", total_samples - stats['total_annotated'])
-
+    
+    # Clear data section
+    if total_samples > 0:
+        st.divider()
+        st.subheader("⚠️ Clear All Data")
+        st.warning(
+            "This will permanently delete all samples and annotations. "
+            "This action cannot be undone. Use this if you want to start over with a new dataset."
+        )
+        
+        # Use a two-step confirmation process
+        if st.session_state.get('show_clear_confirmation', False):
+            st.error("⚠️ Are you absolutely sure you want to delete all data?")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Yes, Delete Everything", type="primary", use_container_width=True):
+                    # Clear all data
+                    result = db.clear_all_data()
+                    
+                    # Clear session state
+                    if 'samples_to_annotate' in st.session_state:
+                        del st.session_state.samples_to_annotate
+                    if 'current_index' in st.session_state:
+                        del st.session_state.current_index
+                    if 'show_rejection_form' in st.session_state:
+                        del st.session_state.show_rejection_form
+                    
+                    # Reset confirmation state
+                    st.session_state.show_clear_confirmation = False
+                    
+                    st.success(
+                        f"✅ All data cleared! Deleted {result['samples_deleted']} samples "
+                        f"and {result['annotations_deleted']} annotations."
+                    )
+                    st.info("You can now import a new dataset.")
+                    st.rerun()
+            
+            with col2:
+                if st.button("Cancel", use_container_width=True):
+                    st.session_state.show_clear_confirmation = False
+                    st.rerun()
+        else:
+            if st.button("Clear All Data", type="secondary", use_container_width=True):
+                st.session_state.show_clear_confirmation = True
+                st.rerun()
