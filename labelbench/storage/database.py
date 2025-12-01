@@ -358,10 +358,11 @@ class Database:
         return results
     
     def get_total_samples(self) -> int:
-        """Get total number of samples in database.
+        """
+        Return the total number of samples stored in the database.
         
         Returns:
-            Count of samples
+            int: Total number of samples.
         """
         with self._get_connection() as conn:
             cursor = conn.execute("SELECT COUNT(*) as count FROM samples")
@@ -369,13 +370,13 @@ class Database:
         return row['count']
     
     def clear_all_data(self) -> Dict[str, int]:
-        """Delete all samples and annotations from the database.
+        """
+        Permanently remove all samples and annotations from the database.
         
-        This will permanently remove all data. Use with caution.
+        Counts records before deletion and deletes all rows from annotations and samples (respecting foreign-key cascade), returning the pre-deletion counts.
         
         Returns:
-            Dictionary with keys 'samples_deleted' and 'annotations_deleted' 
-            containing the counts of deleted records
+            result (Dict[str, int]): Dictionary with keys 'samples_deleted' and 'annotations_deleted' containing the number of samples and annotations removed.
         """
         with self._get_connection() as conn:
             # Get counts before deletion for reporting
@@ -395,4 +396,3 @@ class Database:
             'samples_deleted': samples_count,
             'annotations_deleted': annotations_count
         }
-

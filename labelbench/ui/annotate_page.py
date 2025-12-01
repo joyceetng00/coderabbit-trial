@@ -6,7 +6,11 @@ from models.annotation import Annotation
 
 
 def show_annotate_page():
-    """Display the annotation interface."""
+    """
+    Render the annotation UI and manage per-sample annotation state.
+    
+    Displays the current unannotated sample (prompt, response, metadata), progress, and controls for accepting or rejecting a sample. Loads fresh annotation data from the database via st.session_state.db, updates session state keys (e.g., samples_to_annotate, current_index, show_rejection_form), inserts annotations on accept/reject, and advances or refreshes the UI as needed (may trigger st.rerun()). When rejecting, requires explanatory notes and a selected primary issue before saving.
+    """
     # Custom CSS for button colors
     st.markdown("""
     <style>
@@ -260,7 +264,15 @@ def show_annotate_page():
 
 
 def _move_to_next_sample():
-    """Helper to move to next sample and handle end of list."""
+    """
+    Advance the session to the next unannotated sample and refresh the UI.
+    
+    Reloads the current list of unannotated samples from the database and updates session state accordingly. If no unannotated samples remain, clears the session list and resets the current index to 0. If there are samples, increments the current index when not at the end of the list; if at the end, resets the index to 0 to allow reloading. Triggers a Streamlit rerun to refresh the page.
+    
+    Side effects:
+    - Updates st.session_state.samples_to_annotate and st.session_state.current_index.
+    - Calls st.rerun() to refresh the app.
+    """
     db = st.session_state.db
     
     # Always reload fresh unannotated samples from database
@@ -280,4 +292,3 @@ def _move_to_next_sample():
         st.session_state.current_index = new_index
     
     st.rerun()
-
