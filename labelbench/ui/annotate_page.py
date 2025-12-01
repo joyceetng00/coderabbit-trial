@@ -275,12 +275,9 @@ def _move_to_next_sample():
         st.session_state.samples_to_annotate = new_samples
         current_idx = st.session_state.get('current_index', 0)
         
-        # Move to next if not at end, otherwise stay at current
-        if current_idx < len(new_samples) - 1:
-            st.session_state.current_index = current_idx + 1
-        else:
-            # At end of current list, but more might exist - reload
-            st.session_state.current_index = 0
+        # Clamp index to new list bounds (don't increment, as list shifted when item was removed)
+        new_index = current_idx if current_idx < len(new_samples) else max(0, len(new_samples) - 1)
+        st.session_state.current_index = new_index
     
     st.rerun()
 
