@@ -131,7 +131,7 @@ def show_annotate_page():
                 st.rerun()
     
     with col2:
-        if st.button("Reject", use_container_width=True, type="primary"):
+        if st.button("Reject", use_container_width=True):
             st.session_state.show_rejection_form = True
             st.rerun()
     
