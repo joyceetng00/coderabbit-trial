@@ -94,4 +94,50 @@ def show_import_page():
     col1.metric("Total Samples", total_samples)
     col2.metric("Annotated", stats['total_annotated'])
     col3.metric("Remaining", total_samples - stats['total_annotated'])
+    
+    # Clear data section
+    if total_samples > 0:
+        st.divider()
+        st.subheader("⚠️ Clear All Data")
+        st.warning(
+            "This will permanently delete all samples and annotations. "
+            "This action cannot be undone. Use this if you want to start over with a new dataset."
+        )
+        
+        # Use a two-step confirmation process
+        if st.session_state.get('show_clear_confirmation', False):
+            st.error("⚠️ Are you absolutely sure you want to delete all data?")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Yes, Delete Everything", type="primary", use_container_width=True):
+                    # Clear all data
+                    result = db.clear_all_data()
+                    
+                    # Clear session state
+                    if 'samples_to_annotate' in st.session_state:
+                        del st.session_state.samples_to_annotate
+                    if 'current_index' in st.session_state:
+                        del st.session_state.current_index
+                    if 'show_rejection_form' in st.session_state:
+                        del st.session_state.show_rejection_form
+                    
+                    # Reset confirmation state
+                    st.session_state.show_clear_confirmation = False
+                    
+                    st.success(
+                        f"✅ All data cleared! Deleted {result['samples_deleted']} samples "
+                        f"and {result['annotations_deleted']} annotations."
+                    )
+                    st.info("You can now import a new dataset.")
+                    st.rerun()
+            
+            with col2:
+                if st.button("Cancel", use_container_width=True):
+                    st.session_state.show_clear_confirmation = False
+                    st.rerun()
+        else:
+            if st.button("Clear All Data", type="secondary", use_container_width=True):
+                st.session_state.show_clear_confirmation = True
+                st.rerun()
 

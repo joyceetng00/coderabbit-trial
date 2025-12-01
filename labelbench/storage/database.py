@@ -367,4 +367,32 @@ class Database:
             cursor = conn.execute("SELECT COUNT(*) as count FROM samples")
             row = cursor.fetchone()
         return row['count']
+    
+    def clear_all_data(self) -> Dict[str, int]:
+        """Delete all samples and annotations from the database.
+        
+        This will permanently remove all data. Use with caution.
+        
+        Returns:
+            Dictionary with keys 'samples_deleted' and 'annotations_deleted' 
+            containing the counts of deleted records
+        """
+        with self._get_connection() as conn:
+            # Get counts before deletion for reporting
+            cursor = conn.execute("SELECT COUNT(*) as count FROM annotations")
+            annotations_count = cursor.fetchone()['count']
+            
+            cursor = conn.execute("SELECT COUNT(*) as count FROM samples")
+            samples_count = cursor.fetchone()['count']
+            
+            # Delete all annotations first (due to foreign key constraint)
+            conn.execute("DELETE FROM annotations")
+            
+            # Delete all samples (cascade will handle any remaining annotations)
+            conn.execute("DELETE FROM samples")
+        
+        return {
+            'samples_deleted': samples_count,
+            'annotations_deleted': annotations_count
+        }
 

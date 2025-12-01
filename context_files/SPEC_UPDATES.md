@@ -33,7 +33,7 @@ uv run streamlit run app.py
 
 ### 3. Updated Dependencies File
 **Old:** `requirements.txt`
-```
+```text
 streamlit>=1.31.0
 pandas>=2.0.0
 ...
@@ -65,14 +65,14 @@ Added uv-specific entries:
 ## Implementation Checklist Changes
 
 ### Before:
-```
+```text
 ### Day 1: Foundation (PR #1)
 ### Day 2: Import/Export (PR #2)
 ### Days 6-7: Buffer & Presentation
 ```
 
 ### After:
-```
+```text
 ### PR #1: Foundation
 ### PR #2: Import/Export
 ### Buffer: CodeRabbit Review & Presentation

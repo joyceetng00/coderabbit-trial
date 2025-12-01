@@ -137,16 +137,38 @@
 - `models/annotation.py` - Line 33-40
 - `ui/annotate_page.py` - Lines 115-123
 
+### ✅ 5. Clear/Delete All Data Feature - ADDED
+**Problem:** Users could not clear existing data to import a new dataset or start over. No way to reset the database.
+
+**Solution:**
+- Added `clear_all_data()` method to Database class that deletes all samples and annotations
+- Added "Clear All Data" section to Import page with two-step confirmation
+- Clears all session state (samples, current index, rejection form) when data is deleted
+- Shows deletion counts and success message after clearing
+- Only displays clear button when data exists in database
+
+**Changes:**
+- Added `clear_all_data()` method returning deletion counts
+- Two-step confirmation process (initial button → confirmation dialog → delete)
+- Warning messages about permanent deletion
+- Automatic session state cleanup
+- User feedback with deletion statistics
+
+**Files Modified:**
+- `storage/database.py` - Added `clear_all_data()` method
+- `ui/import_page.py` - Added clear data UI section with confirmation
+
 ---
 
 ## Summary
 
-All four issues have been fixed. The annotation interface now:
+All issues have been fixed and new features added. The application now:
 1. ✅ Prevents duplicate annotations
 2. ✅ Properly detects completion
 3. ✅ Has green reject button
 4. ✅ Requires notes for rejections
 5. ✅ Removed redundant issue type
+6. ✅ Allows users to clear all data and start over with new datasets
 
 **Next Steps:**
 - Manual testing to verify all fixes work correctly
