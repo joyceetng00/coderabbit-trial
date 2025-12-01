@@ -7,6 +7,30 @@ from models.annotation import Annotation
 
 def show_annotate_page():
     """Display the annotation interface."""
+    # Custom CSS for button colors
+    st.markdown("""
+    <style>
+    div[data-testid="stButton"] > button[kind="primary"] {
+        background-color: #28a745 !important;
+        border-color: #28a745 !important;
+        color: white !important;
+    }
+    div[data-testid="stButton"] > button[kind="primary"]:hover {
+        background-color: #218838 !important;
+        border-color: #1e7e34 !important;
+    }
+    div[data-testid="stButton"] > button[kind="secondary"] {
+        background-color: #dc3545 !important;
+        border-color: #dc3545 !important;
+        color: white !important;
+    }
+    div[data-testid="stButton"] > button[kind="secondary"]:hover {
+        background-color: #c82333 !important;
+        border-color: #bd2130 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     st.title("Annotate Samples")
     
     db = st.session_state.db
@@ -112,7 +136,12 @@ def show_annotate_page():
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("Accept", use_container_width=True, type="primary"):
+        if st.button("❌ Reject", use_container_width=True, type="secondary"):
+            st.session_state.show_rejection_form = True
+            st.rerun()
+    
+    with col2:
+        if st.button("✅ Accept", use_container_width=True, type="primary"):
             # Double-check sample hasn't been annotated
             if db.get_annotation(sample.id) is None:
                 # Save acceptance annotation
@@ -129,11 +158,6 @@ def show_annotate_page():
                 st.session_state.samples_to_annotate = db.get_unannotated_samples()
                 st.session_state.current_index = 0
                 st.rerun()
-    
-    with col2:
-        if st.button("Reject", use_container_width=True):
-            st.session_state.show_rejection_form = True
-            st.rerun()
     
     # Show rejection form if reject was clicked
     if st.session_state.get('show_rejection_form', False):
