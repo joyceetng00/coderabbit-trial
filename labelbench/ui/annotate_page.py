@@ -6,11 +6,7 @@ from models.annotation import Annotation
 
 
 def show_annotate_page():
-    """
-    Render the annotation UI and manage per-sample annotation state.
-    
-    Displays the current unannotated sample (prompt, response, metadata), progress, and controls for accepting or rejecting a sample. Loads fresh annotation data from the database via st.session_state.db, updates session state keys (e.g., samples_to_annotate, current_index, show_rejection_form), inserts annotations on accept/reject, and advances or refreshes the UI as needed (may trigger st.rerun()). When rejecting, requires explanatory notes and a selected primary issue before saving.
-    """
+    """Display the annotation interface."""
     # Custom CSS for button colors
     st.markdown("""
     <style>
@@ -69,18 +65,20 @@ def show_annotate_page():
     # Get current sample with bounds checking
     current_idx = st.session_state.get('current_index', 0)
     
-    # Validate bounds
-    if current_idx < 0:
-        current_idx = 0
-        st.session_state.current_index = 0
-    elif current_idx >= len(unannotated_samples):
-        current_idx = max(0, len(unannotated_samples) - 1)
-        st.session_state.current_index = current_idx
-    
-    if not unannotated_samples or current_idx >= len(unannotated_samples):
+    # Validate and clamp bounds to ensure we always have a valid index
+    if not unannotated_samples:
         st.warning("No samples available. Please import data first.")
         return
     
+    if current_idx < 0:
+        current_idx = 0
+    elif current_idx >= len(unannotated_samples):
+        current_idx = max(0, len(unannotated_samples) - 1)
+    
+    # Update session state with clamped index
+    st.session_state.current_index = current_idx
+    
+    # Get the sample at the current index (always valid after clamping)
     sample = unannotated_samples[current_idx]
     
     # Verify this sample hasn't been annotated (double-check)
@@ -92,15 +90,14 @@ def show_annotate_page():
         st.rerun()
         return
     
-    # Progress indicator
-    progress = (current_idx + 1) / len(unannotated_samples)
-    st.progress(progress)
-    st.caption(f"Sample {current_idx + 1} of {len(unannotated_samples)} | ID: {sample.id}")
+    # Progress indicator - show actual annotation progress
+    if total_samples > 0:
+        progress = stats['total_annotated'] / total_samples
+        st.progress(progress)
+        st.caption(f"Progress: {stats['total_annotated']} of {total_samples} samples annotated ({progress*100:.1f}%)")
     
-    # Show annotation status
-    remaining = len(unannotated_samples) - (current_idx + 1)
-    if remaining > 0:
-        st.caption(f"📊 {stats['total_annotated']} annotated | {remaining} remaining")
+    # Show current sample info
+    st.caption(f"📝 Viewing Sample ID: {sample.id} | Position in unannotated: {current_idx + 1} of {len(unannotated_samples)}")
     
     # Display metadata
     if sample.metadata:
@@ -118,7 +115,7 @@ def show_annotate_page():
         height=100,
         disabled=True,
         label_visibility="collapsed",
-        key="prompt_display"
+        key=f"prompt_display_{sample.id}"
     )
     
     # Display response
@@ -129,7 +126,7 @@ def show_annotate_page():
         height=150,
         disabled=True,
         label_visibility="collapsed",
-        key="response_display"
+        key=f"response_display_{sample.id}"
     )
     
     st.divider()
@@ -243,14 +240,14 @@ def show_annotate_page():
     
     with col2:
         jump_to = st.number_input(
-            "Jump to sample",
+            "Jump to position",
             min_value=1,
-            max_value=len(unannotated_samples),
+            max_value=len(unannotated_samples) if unannotated_samples else 1,
             value=current_idx + 1,
-            key="jump_input"
+            key=f"jump_input_{len(unannotated_samples)}_{current_idx}"
         )
         if st.button("Go", use_container_width=True):
-            # Validate jump_to index
+            # Validate jump_to index and clamp to valid range
             target_idx = max(0, min(jump_to - 1, len(unannotated_samples) - 1))
             st.session_state.current_index = target_idx
             st.session_state.show_rejection_form = False
@@ -264,15 +261,7 @@ def show_annotate_page():
 
 
 def _move_to_next_sample():
-    """
-    Advance the session to the next unannotated sample and refresh the UI.
-    
-    Reloads the current list of unannotated samples from the database and updates session state accordingly. If no unannotated samples remain, clears the session list and resets the current index to 0. If there are samples, increments the current index when not at the end of the list; if at the end, resets the index to 0 to allow reloading. Triggers a Streamlit rerun to refresh the page.
-    
-    Side effects:
-    - Updates st.session_state.samples_to_annotate and st.session_state.current_index.
-    - Calls st.rerun() to refresh the app.
-    """
+    """Helper to move to next sample and handle end of list."""
     db = st.session_state.db
     
     # Always reload fresh unannotated samples from database
@@ -287,8 +276,12 @@ def _move_to_next_sample():
         st.session_state.samples_to_annotate = new_samples
         current_idx = st.session_state.get('current_index', 0)
         
-        # Clamp index to new list bounds (don't increment, as list shifted when item was removed)
-        new_index = current_idx if current_idx < len(new_samples) else max(0, len(new_samples) - 1)
-        st.session_state.current_index = new_index
+        # Move to next if not at end, otherwise stay at current
+        if current_idx < len(new_samples) - 1:
+            st.session_state.current_index = current_idx + 1
+        else:
+            # At end of current list, but more might exist - reload
+            st.session_state.current_index = 0
     
     st.rerun()
+
