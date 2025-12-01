@@ -37,7 +37,7 @@ For detailed usage instructions, see [`labelbench/README.md`](labelbench/README.
 
 ## Repository Structure
 
-```
+```text
 coderabbit-trial/
 ├── labelbench/          # Main application (entry point: app.py)
 │   ├── app.py          # Streamlit entry point - START HERE
