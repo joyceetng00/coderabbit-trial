@@ -8,7 +8,17 @@ from storage.import_export import import_csv, import_json
 
 
 def show_import_page():
-    """Display the import data page."""
+    """
+    Render the "Import Data" Streamlit page and handle importing prompt-response samples.
+    
+    This page lets the user upload a CSV or JSON file (required fields: `id`, `prompt`, `response`; additional columns are stored as metadata), previews up to five parsed samples, and provides a button to insert parsed samples into the app database. It also shows current database metrics (total, annotated, remaining) and provides a two-step "Clear All Data" workflow to permanently remove all samples and annotations.
+    
+    Side effects:
+    - Writes the uploaded file to a temporary file on disk and removes it after processing.
+    - Calls database methods from `st.session_state.db` (e.g., `insert_samples`, `get_total_samples`, `get_annotation_stats`, `clear_all_data`).
+    - Modifies `st.session_state` keys (e.g., `samples_to_annotate`, `current_index`, `show_rejection_form`, `show_clear_confirmation`) as part of import and clear workflows.
+    - Displays success, warning, error, and informational messages in the Streamlit UI.
+    """
     st.title("Import Data")
     
     st.markdown("""
@@ -140,4 +150,3 @@ def show_import_page():
             if st.button("Clear All Data", type="secondary", use_container_width=True):
                 st.session_state.show_clear_confirmation = True
                 st.rerun()
-
