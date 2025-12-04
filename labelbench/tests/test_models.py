@@ -64,3 +64,4 @@ def test_annotation_auto_id():
     assert ann1.id != ann2.id
     assert len(ann1.id) == 36  # UUID4 format
 
+
