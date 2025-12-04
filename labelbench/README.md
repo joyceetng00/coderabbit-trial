@@ -7,7 +7,13 @@ A lightweight Python-based web application for annotating LLM responses to build
 ### Prerequisites
 
 - **Python 3.10+** installed
-- **uv package manager** installed ([installation guide](https://github.com/astral-sh/uv))
+- **uv package manager** installed:
+  ```bash
+  # Install uv (cross-platform)
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  # Or using pip
+  pip install uv
+  ```
 
 ### Installation
 
@@ -16,7 +22,7 @@ A lightweight Python-based web application for annotating LLM responses to build
 cd labelbench
 
 # Install dependencies (creates virtual environment automatically)
-uv sync --extra dev
+uv sync 
 
 # Run the application
 uv run streamlit run app.py

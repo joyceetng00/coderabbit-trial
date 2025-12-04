@@ -42,6 +42,9 @@ class Annotation(BaseModel):
     # Free-form notes
     notes: Optional[str] = Field(None, description="Detailed explanation")
     
+    # Status tracking
+    status: Literal["draft", "final"] = Field(default="draft", description="Draft annotations can be edited, final cannot")
+    
     # Metadata
     annotated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
