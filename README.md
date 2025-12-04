@@ -46,10 +46,8 @@ coderabbit-trial/
 │   ├── ui/             # UI pages
 │   └── README.md       # Complete application documentation
 │
-├── context_files/      # Development documentation
-│   ├── SPEC_REVIEW.md
-│   ├── SPEC_UPDATES.md
-│   ├── TESTING_CHECKLIST.md
+├── archive_files/      # Archived development documentation
+│   ├── PROJECT_REFERENCE.md
 │   └── UI_CHANGES.md
 │
 └── labelbench_spec.md  # Technical specification
@@ -59,7 +57,7 @@ coderabbit-trial/
 
 - **Application Guide**: [`labelbench/README.md`](labelbench/README.md) - Complete usage guide, architecture, and examples
 - **Technical Spec**: `labelbench_spec.md` - Full implementation specification
-- **Development Docs**: `context_files/` - Technical reviews, updates, and testing guides for agents
+- **Archived Docs**: `archive_files/` - Historical development documentation and project references
 
 ## License
 
