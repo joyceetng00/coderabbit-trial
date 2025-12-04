@@ -35,60 +35,33 @@ def show_annotate_page():
     
     db = st.session_state.db
     
-    # Always reload unannotated samples to ensure freshness
-    unannotated_samples = db.get_unannotated_samples()
-    total_samples = db.get_total_samples()
+    # Get all samples for navigation
+    all_samples = db.get_all_samples()
+    total_samples = len(all_samples)
     stats = db.get_annotation_stats()
     
-    # Check if all samples are annotated
-    if total_samples > 0 and stats['total_annotated'] >= total_samples:
-        st.info("All samples have been annotated!")
-        st.metric("Completed Annotations", stats['total_annotated'])
-        st.metric("Total Samples", total_samples)
-        st.success("✅ Annotation complete! All samples have been reviewed.")
-        return
-    
-    # Check if there are samples to annotate
-    if not unannotated_samples:
+    # Check if there are any samples
+    if not all_samples:
         st.info("No samples to annotate. Import data to get started.")
-        
-        # Show stats
-        if stats['total_annotated'] > 0:
-            st.metric("Completed Annotations", stats['total_annotated'])
-            st.metric("Total Samples", total_samples)
-        
         return
-    
-    # Update session state with fresh unannotated samples
-    st.session_state.samples_to_annotate = unannotated_samples
     
     # Get current sample with bounds checking
     current_idx = st.session_state.get('current_index', 0)
     
     # Validate and clamp bounds to ensure we always have a valid index
-    if not unannotated_samples:
-        st.warning("No samples available. Please import data first.")
-        return
-    
     if current_idx < 0:
         current_idx = 0
-    elif current_idx >= len(unannotated_samples):
-        current_idx = max(0, len(unannotated_samples) - 1)
+    elif current_idx >= len(all_samples):
+        current_idx = max(0, len(all_samples) - 1)
     
     # Update session state with clamped index
     st.session_state.current_index = current_idx
     
-    # Get the sample at the current index (always valid after clamping)
-    sample = unannotated_samples[current_idx]
+    # Get the sample at the current index
+    sample = all_samples[current_idx]
     
-    # Verify this sample hasn't been annotated (double-check)
+    # Check if sample has existing annotation
     existing_annotation = db.get_annotation(sample.id)
-    if existing_annotation is not None:
-        # This sample was already annotated, reload and skip
-        st.session_state.samples_to_annotate = db.get_unannotated_samples()
-        st.session_state.current_index = 0
-        st.rerun()
-        return
     
     # Progress indicator - show actual annotation progress
     if total_samples > 0:
@@ -96,8 +69,15 @@ def show_annotate_page():
         st.progress(progress)
         st.caption(f"Progress: {stats['total_annotated']} of {total_samples} samples annotated ({progress*100:.1f}%)")
     
-    # Show current sample info
-    st.caption(f"📝 Viewing Sample ID: {sample.id} | Position in unannotated: {current_idx + 1} of {len(unannotated_samples)}")
+    # Show current sample info with annotation status
+    annotation_status = ""
+    if existing_annotation:
+        status_text = "✅ ACCEPTED" if existing_annotation.is_acceptable else "❌ REJECTED"
+        annotation_status = f" | Status: {status_text}"
+    else:
+        annotation_status = " | Status: ⚪ NOT ANNOTATED"
+    
+    st.caption(f"📝 Sample ID: {sample.id} | Position: {current_idx + 1} of {total_samples}{annotation_status}")
     
     # Display metadata
     if sample.metadata:
@@ -134,31 +114,36 @@ def show_annotate_page():
     # Annotation form
     st.subheader("Quality Assessment")
     
+    # Show current annotation if it exists
+    if existing_annotation:
+        current_decision = "ACCEPTED" if existing_annotation.is_acceptable else "REJECTED"
+        st.info(f"Current annotation: {current_decision} (click below to change)")
+        if existing_annotation.primary_issue:
+            st.caption(f"Issue: {existing_annotation.primary_issue}")
+        if existing_annotation.notes:
+            st.caption(f"Notes: {existing_annotation.notes}")
+    
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("❌ Reject", use_container_width=True, type="secondary"):
+        if st.button("Reject", use_container_width=True, type="secondary"):
             st.session_state.show_rejection_form = True
             st.rerun()
     
     with col2:
-        if st.button("✅ Accept", use_container_width=True, type="primary"):
-            # Double-check sample hasn't been annotated
-            if db.get_annotation(sample.id) is None:
-                # Save acceptance annotation
-                annotation = Annotation(
-                    sample_id=sample.id,
-                    is_acceptable=True
-                )
-                db.insert_annotation(annotation)
-                
-                # Reload unannotated samples and move to next
-                _move_to_next_sample()
-            else:
-                st.warning("This sample was already annotated. Refreshing...")
-                st.session_state.samples_to_annotate = db.get_unannotated_samples()
-                st.session_state.current_index = 0
-                st.rerun()
+        if st.button("Accept", use_container_width=True, type="primary"):
+            # Create or update annotation
+            annotation = Annotation(
+                sample_id=sample.id,
+                is_acceptable=True
+            )
+            # If updating existing annotation, keep the same ID
+            if existing_annotation:
+                annotation.id = existing_annotation.id
+            
+            db.insert_annotation(annotation)
+            st.success("Sample accepted!")
+            st.rerun()
     
     # Show rejection form if reject was clicked
     if st.session_state.get('show_rejection_form', False):
@@ -166,22 +151,37 @@ def show_annotate_page():
         st.subheader("Rejection Details")
         
         with st.form("rejection_form"):
+            # Pre-fill form if editing existing rejection
+            default_issue = None
+            default_notes = ""
+            if existing_annotation and not existing_annotation.is_acceptable:
+                default_issue = existing_annotation.primary_issue
+                default_notes = existing_annotation.notes or ""
+            
+            issue_options = [
+                "hallucination",
+                "incomplete",
+                "wrong_format",
+                "off_topic",
+                "inappropriate_tone",
+                "refusal",
+                "other"
+            ]
+            
+            default_index = 0
+            if default_issue and default_issue in issue_options:
+                default_index = issue_options.index(default_issue)
+            
             primary_issue = st.selectbox(
                 "Primary Issue",
-                [
-                    "hallucination",
-                    "incomplete",
-                    "wrong_format",
-                    "off_topic",
-                    "inappropriate_tone",
-                    "refusal",
-                    "other"
-                ],
+                issue_options,
+                index=default_index,
                 help="Select the main reason for rejecting this response"
             )
             
             notes = st.text_area(
                 "Notes *",
+                value=default_notes,
                 placeholder="Provide additional context about why this response was rejected...",
                 height=100,
                 help="Required: Please explain why this response was rejected"
@@ -200,28 +200,23 @@ def show_annotate_page():
                 if not notes or not notes.strip():
                     st.error("⚠️ Notes are required when rejecting a sample. Please provide an explanation.")
                 else:
-                    # Double-check sample hasn't been annotated
-                    if db.get_annotation(sample.id) is None:
-                        # Save rejection annotation
-                        annotation = Annotation(
-                            sample_id=sample.id,
-                            is_acceptable=False,
-                            primary_issue=primary_issue,
-                            notes=notes.strip()
-                        )
-                        db.insert_annotation(annotation)
-                        
-                        # Clear form state
-                        st.session_state.show_rejection_form = False
-                        
-                        # Move to next sample
-                        _move_to_next_sample()
-                    else:
-                        st.warning("This sample was already annotated. Refreshing...")
-                        st.session_state.show_rejection_form = False
-                        st.session_state.samples_to_annotate = db.get_unannotated_samples()
-                        st.session_state.current_index = 0
-                        st.rerun()
+                    # Create or update annotation
+                    annotation = Annotation(
+                        sample_id=sample.id,
+                        is_acceptable=False,
+                        primary_issue=primary_issue,
+                        notes=notes.strip()
+                    )
+                    # If updating existing annotation, keep the same ID
+                    if existing_annotation:
+                        annotation.id = existing_annotation.id
+                    
+                    db.insert_annotation(annotation)
+                    
+                    # Clear form state
+                    st.session_state.show_rejection_form = False
+                    st.success("Sample rejected!")
+                    st.rerun()
             
             if cancelled:
                 st.session_state.show_rejection_form = False
@@ -240,21 +235,20 @@ def show_annotate_page():
     
     with col2:
         jump_to = st.number_input(
-            "Jump to position",
+            "Jump to sample",
             min_value=1,
-            max_value=len(unannotated_samples) if unannotated_samples else 1,
+            max_value=total_samples,
             value=current_idx + 1,
-            key=f"jump_input_{len(unannotated_samples)}_{current_idx}"
+            key=f"jump_input_{total_samples}_{current_idx}"
         )
         if st.button("Go", use_container_width=True):
-            # Validate jump_to index and clamp to valid range
-            target_idx = max(0, min(jump_to - 1, len(unannotated_samples) - 1))
-            st.session_state.current_index = target_idx
-            st.session_state.show_rejection_form = False
-            st.rerun()
+            if 1 <= jump_to <= total_samples:
+                st.session_state.current_index = jump_to - 1
+                st.session_state.show_rejection_form = False
+                st.rerun()
     
     with col3:
-        if st.button("Next →", disabled=(current_idx == len(unannotated_samples) - 1)):
+        if st.button("Next →", disabled=(current_idx == len(all_samples) - 1)):
             st.session_state.current_index += 1
             st.session_state.show_rejection_form = False
             st.rerun()

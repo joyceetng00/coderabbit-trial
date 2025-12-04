@@ -27,6 +27,14 @@ class Database:
             db_path: Path to SQLite database file
         """
         self.db_path = db_path
+        self._persistent_conn = None
+        
+        # For in-memory databases, we need to keep a persistent connection
+        # because each connect(':memory:') call creates a new database
+        if self.db_path == ":memory:":
+            self._persistent_conn = sqlite3.connect(self.db_path)
+            self._persistent_conn.row_factory = sqlite3.Row
+        
         self._init_db()
     
     @contextmanager
@@ -40,16 +48,26 @@ class Database:
             with self._get_connection() as conn:
                 conn.execute(...)
         """
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        try:
-            yield conn
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
+        # Use persistent connection for in-memory databases
+        if self._persistent_conn:
+            try:
+                yield self._persistent_conn
+                self._persistent_conn.commit()
+            except Exception:
+                self._persistent_conn.rollback()
+                raise
+        else:
+            # Use regular connection for file databases
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            try:
+                yield conn
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+            finally:
+                conn.close()
     
     def _parse_metadata(self, metadata_str: str) -> Dict[str, Any]:
         """Safely parse metadata JSON string.
@@ -96,10 +114,18 @@ class Database:
                     is_acceptable BOOLEAN NOT NULL,
                     primary_issue TEXT,
                     notes TEXT,
+                    status TEXT DEFAULT 'draft',
                     annotated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE
                 )
             """)
+            
+            # Add status column if it doesn't exist (migration for existing databases)
+            try:
+                conn.execute("ALTER TABLE annotations ADD COLUMN status TEXT DEFAULT 'draft'")
+            except Exception:
+                # Column already exists, ignore
+                pass
             
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_annotations_sample 
@@ -228,8 +254,8 @@ class Database:
         with self._get_connection() as conn:
             conn.execute("""
                 INSERT OR REPLACE INTO annotations 
-                (id, sample_id, annotator_id, is_acceptable, primary_issue, notes, annotated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (id, sample_id, annotator_id, is_acceptable, primary_issue, notes, status, annotated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 annotation.id,
                 annotation.sample_id,
@@ -237,6 +263,7 @@ class Database:
                 annotation.is_acceptable,
                 annotation.primary_issue,
                 annotation.notes,
+                annotation.status,
                 annotation.annotated_at
             ))
     
@@ -264,6 +291,7 @@ class Database:
                 is_acceptable=bool(row['is_acceptable']),
                 primary_issue=row['primary_issue'],
                 notes=row['notes'],
+                status=row['status'] if 'status' in row.keys() else 'draft',  # Default to draft for existing annotations
                 annotated_at=row['annotated_at']
             )
         return None
@@ -395,4 +423,93 @@ class Database:
         return {
             'samples_deleted': samples_count,
             'annotations_deleted': annotations_count
+        }
+    
+    def get_all_samples(self) -> List[Sample]:
+        """Get all samples (both annotated and unannotated).
+        
+        Returns:
+            List of all Sample objects ordered by ID
+        """
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT id, prompt, response, metadata, imported_at
+                FROM samples 
+                ORDER BY id
+            """)
+            rows = cursor.fetchall()
+        
+        samples = []
+        for row in rows:
+            sample = Sample(
+                id=row['id'],
+                prompt=row['prompt'],
+                response=row['response'],
+                metadata=self._parse_metadata(row['metadata']),
+                imported_at=row['imported_at']
+            )
+            samples.append(sample)
+        
+        return samples
+    
+    def finalize_all_annotations(self) -> int:
+        """Mark all draft annotations as final.
+        
+        Returns:
+            Number of annotations that were finalized
+        """
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                UPDATE annotations 
+                SET status = 'final' 
+                WHERE status = 'draft'
+            """)
+            return cursor.rowcount
+    
+    def are_all_annotations_final(self) -> bool:
+        """Check if all annotations are in final status.
+        
+        Returns:
+            True if all annotations are final, False if any are draft
+        """
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT COUNT(*) as count 
+                FROM annotations 
+                WHERE status = 'draft'
+            """)
+            draft_count = cursor.fetchone()['count']
+        
+        return draft_count == 0
+    
+    def get_annotation_summary(self) -> Dict[str, int]:
+        """Get counts of annotations by status.
+        
+        Returns:
+            Dictionary with counts: {total_samples, draft_annotations, final_annotations, unannotated}
+        """
+        total_samples = self.get_total_samples()
+        
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT status, COUNT(*) as count 
+                FROM annotations 
+                GROUP BY status
+            """)
+            rows = cursor.fetchall()
+        
+        draft_count = 0
+        final_count = 0
+        
+        for row in rows:
+            if row['status'] == 'draft':
+                draft_count = row['count']
+            elif row['status'] == 'final':
+                final_count = row['count']
+        
+        return {
+            'total_samples': total_samples,
+            'draft_annotations': draft_count,
+            'final_annotations': final_count,
+            'unannotated': total_samples - draft_count - final_count
         }
