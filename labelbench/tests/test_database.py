@@ -144,3 +144,4 @@ def test_get_samples_by_issue(test_db):
     assert isinstance(annotation, Annotation)
     assert annotation.primary_issue == "hallucination"
 
+

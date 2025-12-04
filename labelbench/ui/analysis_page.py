@@ -82,7 +82,7 @@ def show_analysis_page():
     
     # Handle bar click selection
     if selected_points and selected_points.selection and selected_points.selection.points:
-        selected_issue = selected_points.selection.points[0].x
+        selected_issue = selected_points.selection.points[0]["x"]
         
         st.divider()
         st.subheader(f"Samples with '{selected_issue}'")
